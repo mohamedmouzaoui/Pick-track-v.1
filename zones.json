@@ -1,0 +1,9 @@
+{
+  "frame_size": [1280, 720],
+  "zones": [
+    {"name": "shelf_A",  "kind": "shelf",    "rect": [100, 100, 500, 260]},
+    {"name": "shelf_B",  "kind": "shelf",    "rect": [700, 100, 1100, 260]},
+    {"name": "checkout", "kind": "checkout", "rect": [500, 520, 800, 700]},
+    {"name": "exit",     "kind": "exit",     "rect": [1100, 500, 1280, 720]}
+  ]
+}
