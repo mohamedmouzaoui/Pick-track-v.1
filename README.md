@@ -183,5 +183,5 @@ run_demo.py
 
 ## Author
 
-**Mohamed Mouzaoui** - cybersecurity graduate and full-stack developer, Blida, Algeria
+**Mohamed Mouzaoui** - cybersecurity graduate and full-stack developer, 
 [GitHub](https://github.com/mohamedmouzaoui) · [LinkedIn](https://linkedin.com/in/mohamed-mouzaoui-19ab8740a)
