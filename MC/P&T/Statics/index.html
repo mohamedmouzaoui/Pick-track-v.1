@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pick & Track Agents</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --mut:#8b949e; --acc:#e8832a;
+          --low:#3fb950; --med:#d29922; --high:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,sans-serif; }
+  header { padding:14px 18px; border-bottom:2px solid var(--acc); display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  header h1 { font-size:18px; margin:0 auto 0 0; } header h1 span { color:var(--acc); }
+  select,button { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:7px 12px; font:inherit; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#111; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .chip { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--mut); }
+  main { display:grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap:14px; padding:14px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .panel h2 { font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--acc); margin:0 0 8px; }
+  canvas { width:100%; height:auto; background:#0a0e14; border-radius:6px; display:block; }
+  .track { display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .bar { flex:1; height:8px; background:#21262d; border-radius:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; }
+  .lvl-LOW { color:var(--low); } .lvl-MEDIUM { color:var(--med); } .lvl-HIGH { color:var(--high); }
+  .feed { max-height:230px; overflow:auto; font:12px/1.5 ui-monospace,monospace; }
+  .feed div { border-bottom:1px solid #21262d; padding:2px 0; }
+  .case { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
+  .case h3 { margin:0 0 6px; font-size:14px; }
+  .agent { margin:6px 0; padding-left:10px; border-left:3px solid var(--line); }
+  .agent b { color:var(--acc); } .tag { font-size:10px; color:var(--mut); border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:4px; }
+  .mut { color:var(--mut); } ul { margin:4px 0 0 18px; padding:0; }
+  .empty { color:var(--mut); font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pick &amp; Track <span>Agents</span></h1>
+  <span class="chip" id="llm">LLM: …</span>
+  <span class="chip" id="status">idle</span>
+  <select id="scenario">
+    <option value="mixed">mixed (3 people)</option>
+    <option value="honest">honest shopper</option>
+    <option value="shoplifter">shoplifter</option>
+    <option value="browser">browser (no pick)</option>
+  </select>
+  <select id="speed">
+    <option value="4">slow</option><option value="8" selected>normal</option><option value="30">fast</option>
+  </select>
+  <button class="primary" id="run">Run</button>
+  <button id="reset">Reset</button>
+</header>
+<main>
+  <section>
+    <div class="panel"><h2>Store view <span class="mut" id="clock"></span></h2><canvas id="cv" width="1280" height="720"></canvas></div>
+    <div class="panel" style="margin-top:14px"><h2>Tracks &amp; risk</h2><div id="tracks" class="empty">No one yet. Press Run.</div></div>
+    <div class="panel" style="margin-top:14px"><h2>Detector events</h2><div id="events" class="feed empty">Waiting…</div></div>
+  </section>
+  <section>
+    <div class="panel"><h2>Agent cases</h2><div id="cases" class="empty">Cases appear when a person's risk gets high or they leave after picking items.</div></div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = {LOW:'#3fb950', MEDIUM:'#d29922', HIGH:'#f85149'};
+const ZCOL = {shelf:'#58a6ff', checkout:'#a371f7', exit:'#e8832a'};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) { alert((await r.json()).detail || 'error'); throw new Error(r.status); }
+  return r.json();
+}
+
+function drawCanvas(s) {
+  const cv = $('#cv'), g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.font = '22px system-ui'; g.lineWidth = 2;
+  for (const z of s.zones.zones) {
+    const [x1, y1, x2, y2] = z.rect, c = ZCOL[z.kind] || '#888';
+    g.fillStyle = c + '22'; g.strokeStyle = c; g.fillRect(x1, y1, x2 - x1, y2 - y1); g.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    g.fillStyle = c; g.fillText(z.name, x1 + 8, y1 + 26);
+  }
+  for (const p of s.persons) {
+    const [x1, y1, x2, y2] = p.bbox, c = COL[p.level] || COL.LOW;
+    g.strokeStyle = c; g.lineWidth = 3; g.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    g.fillStyle = c; g.fillText('#' + p.id + ' ' + p.level, x1, y1 - 8);
+    for (const w of p.wrists) { g.beginPath(); g.arc(w[0], w[1], 7, 0, 6.3); g.fill(); }
+  }
+}
+
+function render(s) {
+  $('#llm').textContent = 'LLM: ' + s.llm_provider + (s.llm_provider === 'offline' ? ' (rules only)' : '');
+  $('#status').textContent = s.status;
+  $('#clock').textContent = s.status === 'idle' ? '' : '· t = ' + s.t + 's';
+  $('#run').disabled = s.status === 'running';
+  drawCanvas(s);
+
+  const ids = Object.keys(s.risks);
+  $('#tracks').className = ids.length ? '' : 'empty';
+  $('#tracks').innerHTML = ids.length ? ids.map(id => {
+    const r = s.risks[id];
+    return `<div class="track"><b>#${esc(id)}</b><div class="bar"><i style="width:${r.score}%;background:${COL[r.level]}"></i></div>
+            <span class="lvl-${esc(r.level)}">${esc(r.level)} ${r.score}</span></div>`;
+  }).join('') : 'No one yet. Press Run.';
+
+  $('#events').className = 'feed' + (s.events.length ? '' : ' empty');
+  $('#events').innerHTML = s.events.length ? s.events.slice().reverse().map(e =>
+    `<div>[${e.t.toFixed(1)}s] #${e.track_id} <b>${esc(e.kind)}</b> ${esc(e.zone || '')}</div>`).join('') : 'Waiting…';
+
+  $('#cases').className = s.cases.length ? '' : 'empty';
+  $('#cases').innerHTML = s.cases.length ? s.cases.map(c => {
+    const tag = a => `<span class="tag">${esc(a.source)}</span>`;
+    return `<div class="case">
+      <h3>Case ${c.case_id} · person #${c.track_id} · <span class="lvl-${esc(c.risk.level)}">${esc(c.risk.level)} ${c.risk.score}/100</span>
+          <span class="mut"> · trigger: ${esc(c.trigger)}</span></h3>
+      <div class="agent"><b>Observer</b>${tag(c.observer)}<br>${esc(c.observer.narrative)}</div>
+      <div class="agent"><b>Analyst</b>${tag(c.analyst)}<br>Verdict: <b>${esc(c.analyst.verdict)}</b> (${c.analyst.confidence})<br><span class="mut">${esc(c.analyst.reasoning)}</span></div>
+      <div class="agent"><b>Skeptic</b>${tag(c.skeptic)}<br>Chance it is innocent: <b>${Math.round(c.skeptic.doubt * 100)}%</b>
+          <ul>${c.skeptic.alternatives.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>
+      <div class="agent"><b>Responder</b>${tag(c.responder)}<br>Action: <b>${esc(c.responder.action)}</b>
+          ${c.responder.requires_human_review ? '· human review required' : ''}<br>${esc(c.responder.message)}</div>
+    </div>`;
+  }).join('') : 'Cases appear when a person\'s risk gets high or they leave after picking items.';
+}
+
+async function tick() { try { render(await api('/api/state')); } catch (e) {} }
+$('#run').onclick = async () => { await api(`/api/run?scenario=${$('#scenario').value}&speed=${$('#speed').value}`, {method:'POST'}); tick(); };
+$('#reset').onclick = async () => { await api('/api/reset', {method:'POST'}); tick(); };
+tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>
