@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Pick & Track Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#ffffff; --soft:#f5f7f5; --card:#ffffff; --line:#e7ebe8; --ink:#0f1a14; --mut:#667069;
+    --acc:#14a05a; --acc-soft:#e6f6ed; --acc-ink:#0b6b3b;
+    --low:#16a34a; --med:#d97706; --high:#dc2626;
+    --low-bg:#e6f6ed; --med-bg:#fdf1de; --high-bg:#fde8e8;
+    --shadow:0 1px 2px rgba(15,26,20,.04), 0 12px 32px -12px rgba(15,26,20,.12);
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+
+  /* nav */
+  .nav { position:sticky; top:0; z-index:10; background:rgba(255,255,255,.85); backdrop-filter:saturate(180%) blur(14px); border-bottom:1px solid var(--line); }
+  .nav-in { max-width:1180px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; gap:12px; }
+  .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; letter-spacing:-.01em; margin-right:auto; }
+  .logo i { width:32px; height:32px; border-radius:10px; background:var(--acc); color:#fff; display:grid; place-items:center; font-style:normal; font-weight:800; font-size:16px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:500; padding:6px 12px; border-radius:99px; background:var(--soft); color:var(--mut); border:1px solid var(--line); }
+  .chip::before { content:""; width:7px; height:7px; border-radius:50%; background:#b5beb8; }
+  #status.live::before { background:var(--acc); box-shadow:0 0 0 4px var(--acc-soft); }
+
+  /* hero */
+  .hero { max-width:1180px; margin:0 auto; padding:56px 20px 28px; text-align:center; }
+  .badge { display:inline-flex; align-items:center; gap:8px; background:var(--acc-soft); color:var(--acc-ink); font-weight:600; font-size:13px; padding:6px 14px; border-radius:99px; }
+  .hero h1 { font-size:clamp(34px,6vw,60px); line-height:1.04; letter-spacing:-.035em; font-weight:800; margin:18px auto 14px; max-width:15ch; }
+  .hero p { color:var(--mut); font-size:clamp(16px,2vw,19px); max-width:56ch; margin:0 auto; }
+
+  /* controls */
+  .controls { max-width:1180px; margin:28px auto 0; padding:0 20px; }
+  .bar-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; background:var(--soft); border:1px solid var(--line); border-radius:22px; padding:12px; }
+  select,button { font:inherit; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:99px; padding:10px 18px; cursor:pointer; transition:background .15s,border-color .15s; }
+  select { appearance:none; padding-right:36px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23667069' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+  button:hover,select:hover { border-color:#c9d1cc; }
+  button.primary { background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600; padding:10px 26px; }
+  button.primary:hover { background:#1d2d24; }
+  button:disabled { opacity:.5; cursor:default; }
+  :focus-visible { outline:3px solid var(--acc); outline-offset:2px; }
+
+  /* layout */
+  main { max-width:1180px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:20px; padding:24px 20px 56px; align-items:start; }
+  main > section { display:flex; flex-direction:column; gap:20px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:24px; padding:20px; box-shadow:var(--shadow); }
+  .panel h2 { font-size:18px; font-weight:700; letter-spacing:-.02em; margin:0 0 14px; display:flex; align-items:baseline; gap:8px; }
+  .panel.store { background:var(--soft); }
+  canvas { width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:16px; display:block; }
+
+  /* tracks */
+  .track { display:flex; align-items:center; gap:12px; margin:10px 0; }
+  .track b { min-width:34px; font-weight:700; }
+  .bar { flex:1; height:10px; background:var(--soft); border-radius:99px; overflow:hidden; }
+  .bar i { display:block; height:100%; border-radius:99px; transition:width .4s ease; }
+  .pill { font-size:13px; font-weight:600; padding:3px 12px; border-radius:99px; white-space:nowrap; }
+  .lvl-LOW { color:var(--low); background:var(--low-bg); }
+  .lvl-MEDIUM { color:var(--med); background:var(--med-bg); }
+  .lvl-HIGH { color:var(--high); background:var(--high-bg); }
+
+  /* events */
+  .feed { max-height:230px; overflow:auto; font-size:13px; }
+  .feed div { display:flex; gap:10px; align-items:baseline; padding:8px 12px; border-radius:12px; }
+  .feed div:nth-child(odd) { background:var(--soft); }
+  .feed .t { color:var(--mut); font-variant-numeric:tabular-nums; min-width:52px; }
+
+  /* cases */
+  .case { background:var(--soft); border:1px solid var(--line); border-radius:20px; padding:16px; margin-bottom:14px; }
+  .case:last-child { margin-bottom:0; }
+  .case h3 { margin:0 0 12px; font-size:16px; font-weight:700; letter-spacing:-.01em; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .agent { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:8px 0; }
+  .agent .who { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-weight:700; }
+  .agent .who i { width:24px; height:24px; border-radius:8px; background:var(--acc-soft); color:var(--acc-ink); display:grid; place-items:center; font-style:normal; font-size:12px; font-weight:800; }
+  .tag { font-size:11px; font-weight:500; color:var(--mut); background:var(--soft); border-radius:99px; padding:2px 8px; }
+  .mut { color:var(--mut); font-weight:400; } ul { margin:6px 0 0 18px; padding:0; color:var(--mut); }
+  .empty { color:var(--mut); }
+  .feed.empty,#tracks.empty,#cases.empty { padding:14px 4px; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-in">
+    <div class="logo"><i>P</i>Pick &amp; Track</div>
+    <span class="chip" id="llm">LLM: …</span>
+    <span class="chip" id="status">idle</span>
+  </div>
+</nav>
+
+<section class="hero">
+  <span class="badge">Four AI agents review every case</span>
+  <h1>Know what shoppers really do.</h1>
+  <p>Watch the store live, follow each person's risk score, and see how the Observer, Analyst, Skeptic and Responder reach a decision.</p>
+</section>
+
+<div class="controls">
+  <div class="bar-controls">
+    <select id="scenario" aria-label="Scenario">
+      <option value="mixed">mixed (3 people)</option>
+      <option value="honest">honest shopper</option>
+      <option value="shoplifter">shoplifter</option>
+      <option value="browser">browser (no pick)</option>
+    </select>
+    <select id="speed" aria-label="Speed">
+      <option value="4">slow</option><option value="8" selected>normal</option><option value="30">fast</option>
+    </select>
+    <button class="primary" id="run">Run</button>
+    <button id="reset">Reset</button>
+  </div>
+</div>
+
+<main>
+  <section>
+    <div class="panel store"><h2>Store view <span class="mut" id="clock"></span></h2><canvas id="cv" width="1280" height="720"></canvas></div>
+    <div class="panel"><h2>Tracks &amp; risk</h2><div id="tracks" class="empty">No one yet. Press Run.</div></div>
+    <div class="panel"><h2>Detector events</h2><div id="events" class="feed empty">Waiting…</div></div>
+  </section>
+  <section>
+    <div class="panel"><h2>Agent cases</h2><div id="cases" class="empty">Cases appear when a person's risk gets high or they leave after picking items.</div></div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const COL = {LOW:'#16a34a', MEDIUM:'#d97706', HIGH:'#dc2626'};
+const ZCOL = {shelf:'#2563eb', checkout:'#7c3aed', exit:'#ea580c'};
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) { alert((await r.json()).detail || 'error'); throw new Error(r.status); }
+  return r.json();
+}
+
+function drawCanvas(s) {
+  const cv = $('#cv'), g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.font = '600 22px Inter,system-ui,sans-serif'; g.lineWidth = 2;
+  for (const z of s.zones.zones) {
+    const [x1, y1, x2, y2] = z.rect, c = ZCOL[z.kind] || '#888';
+    g.fillStyle = c + '14'; g.strokeStyle = c + '99'; g.fillRect(x1, y1, x2 - x1, y2 - y1); g.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    g.fillStyle = c; g.fillText(z.name, x1 + 10, y1 + 28);
+  }
+  for (const p of s.persons) {
+    const [x1, y1, x2, y2] = p.bbox, c = COL[p.level] || COL.LOW;
+    g.strokeStyle = c; g.lineWidth = 3; g.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    g.fillStyle = c; g.fillText('#' + p.id + ' ' + p.level, x1, y1 - 8);
+    for (const w of p.wrists) { g.beginPath(); g.arc(w[0], w[1], 7, 0, 6.3); g.fill(); }
+  }
+}
+
+function render(s) {
+  $('#llm').textContent = 'LLM: ' + s.llm_provider + (s.llm_provider === 'offline' ? ' (rules only)' : '');
+  $('#status').textContent = s.status;
+  $('#status').classList.toggle('live', s.status === 'running');
+  $('#clock').textContent = s.status === 'idle' ? '' : '· t = ' + s.t + 's';
+  $('#run').disabled = s.status === 'running';
+  drawCanvas(s);
+
+  const ids = Object.keys(s.risks);
+  $('#tracks').className = ids.length ? '' : 'empty';
+  $('#tracks').innerHTML = ids.length ? ids.map(id => {
+    const r = s.risks[id];
+    return `<div class="track"><b>#${esc(id)}</b><div class="bar"><i style="width:${r.score}%;background:${COL[r.level]}"></i></div>
+            <span class="pill lvl-${esc(r.level)}">${esc(r.level)} ${r.score}</span></div>`;
+  }).join('') : 'No one yet. Press Run.';
+
+  $('#events').className = 'feed' + (s.events.length ? '' : ' empty');
+  $('#events').innerHTML = s.events.length ? s.events.slice().reverse().map(e =>
+    `<div><span class="t">${e.t.toFixed(1)}s</span><span>#${e.track_id} <b>${esc(e.kind)}</b> ${esc(e.zone || '')}</span></div>`).join('') : 'Waiting…';
+
+  $('#cases').className = s.cases.length ? '' : 'empty';
+  $('#cases').innerHTML = s.cases.length ? s.cases.map(c => {
+    const tag = a => `<span class="tag">${esc(a.source)}</span>`;
+    const who = (l, a) => `<div class="who"><i>${l[0]}</i>${l}${tag(a)}</div>`;
+    return `<div class="case">
+      <h3>Case ${c.case_id} · person #${c.track_id} <span class="pill lvl-${esc(c.risk.level)}">${esc(c.risk.level)} ${c.risk.score}/100</span>
+          <span class="mut">trigger: ${esc(c.trigger)}</span></h3>
+      <div class="agent">${who('Observer', c.observer)}${esc(c.observer.narrative)}</div>
+      <div class="agent">${who('Analyst', c.analyst)}Verdict: <b>${esc(c.analyst.verdict)}</b> (${c.analyst.confidence})<br><span class="mut">${esc(c.analyst.reasoning)}</span></div>
+      <div class="agent">${who('Skeptic', c.skeptic)}Chance it is innocent: <b>${Math.round(c.skeptic.doubt * 100)}%</b>
+          <ul>${c.skeptic.alternatives.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>
+      <div class="agent">${who('Responder', c.responder)}Action: <b>${esc(c.responder.action)}</b>
+          ${c.responder.requires_human_review ? '· human review required' : ''}<br>${esc(c.responder.message)}</div>
+    </div>`;
+  }).join('') : 'Cases appear when a person\'s risk gets high or they leave after picking items.';
+}
+
+async function tick() { try { render(await api('/api/state')); } catch (e) {} }
+$('#run').onclick = async () => { await api(`/api/run?scenario=${$('#scenario').value}&speed=${$('#speed').value}`, {method:'POST'}); tick(); };
+$('#reset').onclick = async () => { await api('/api/reset', {method:'POST'}); tick(); };
+tick(); setInterval(tick, 500);
+</script>
+</body>
+</html>
